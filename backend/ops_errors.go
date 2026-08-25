@@ -31,20 +31,23 @@ func wrapOps(code, operation string, cause error) error {
 }
 
 // opsCode classifies an operations error by walking the wrapped cause chain.
+// It inspects the underlying sentinel (via errors.Is) rather than the
+// OpsError.Code label, so a wrapped error such as wrapOps("create", ...,
+// ErrOpsConflict) still resolves to "conflict" — the Code field is only
+// diagnostic context in the error message, never the HTTP classification.
 func opsCode(err error) string {
-	if typed, ok := err.(*OpsError); ok {
-		return typed.Code
-	}
 	switch {
-	case err == ErrOpsNotFound:
+	case err == nil:
+		return ""
+	case errors.Is(err, ErrOpsNotFound):
 		return "not_found"
-	case err == ErrOpsConflict:
+	case errors.Is(err, ErrOpsConflict):
 		return "conflict"
-	case err == ErrOpsInvalid:
+	case errors.Is(err, ErrOpsInvalid):
 		return "invalid"
-	case err == ErrOpsTransition:
+	case errors.Is(err, ErrOpsTransition):
 		return "transition"
-	case err == ErrOpsPolicy:
+	case errors.Is(err, ErrOpsPolicy):
 		return "policy"
 	default:
 		return "internal"

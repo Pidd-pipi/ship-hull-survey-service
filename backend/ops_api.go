@@ -67,7 +67,7 @@ func opsStatusForCode(code string) int {
 	case "not_found":
 		return http.StatusNotFound
 	case "conflict":
-		return http.StatusInternalServerError
+		return http.StatusConflict
 	case "invalid", "transition", "policy":
 		return http.StatusBadRequest
 	default:
