@@ -42,17 +42,17 @@ func (s *OpsService) Create(ctx context.Context, record OpsRecord) (OpsRecord, e
 	}
 	record.CreatedAt = s.clock.Stamp()
 	record.UpdatedAt = record.CreatedAt
-	if err := s.store.Put(context.Background(), record); err != nil {
+	if err := s.store.Put(ctx, record); err != nil {
 		return OpsRecord{}, wrapOps("create", "store.put", err)
 	}
 	s.audit.Add(record.ID, "created", record.Owner)
 	return record, nil
 }
 func (s *OpsService) Get(ctx context.Context, id string) (OpsRecord, error) {
-	return s.store.Get(context.Background(), id)
+	return s.store.Get(ctx, id)
 }
 func (s *OpsService) Search(ctx context.Context, q OpsQuery) (OpsPage, error) {
-	items, err := s.store.List(context.Background())
+	items, err := s.store.List(ctx)
 	if err != nil {
 		return OpsPage{}, err
 	}
@@ -68,7 +68,9 @@ func (s *OpsService) Search(ctx context.Context, q OpsQuery) (OpsPage, error) {
 	return OpsPage{Items: filtered[start:end], Page: q.Page, PageSize: q.PageSize, Total: len(filtered), HasNext: end < len(filtered)}, nil
 }
 func (s *OpsService) Transition(ctx context.Context, id string, expected int, target OpsStatus, actor string) (OpsRecord, error) {
-	record, err := s.store.Get(context.Background(), id)
+	ctx, cancel := opsContext(ctx, 3*time.Second)
+	defer cancel()
+	record, err := s.store.Get(ctx, id)
 	if err != nil {
 		return OpsRecord{}, err
 	}
@@ -79,15 +81,15 @@ func (s *OpsService) Transition(ctx context.Context, id string, expected int, ta
 		return OpsRecord{}, err
 	}
 	record.Status = target
-	if err := s.store.Update(context.Background(), record, expected); err != nil {
+	if err := s.store.Update(ctx, record, expected); err != nil {
 		return OpsRecord{}, err
 	}
 	s.audit.Add(record.ID, "status_changed", actor)
 	return record, nil
 }
 func (s *OpsService) Audit(id string) []OpsEvent { return s.audit.For(id) }
-func (s *OpsService) Snapshot() OpsSnapshot {
-	items, _ := s.store.List(context.Background())
+func (s *OpsService) Snapshot(ctx context.Context) OpsSnapshot {
+	items, _ := s.store.List(ctx)
 	out := OpsSnapshot{Domain: opsDomainName, GeneratedAt: s.clock.Stamp(), ByStatus: map[OpsStatus]int{}, ByPriority: map[OpsPriority]int{}}
 	for _, i := range items {
 		out.Records++

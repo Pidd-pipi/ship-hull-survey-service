@@ -56,7 +56,7 @@ func newOpsHandler(service *OpsService) http.Handler {
 			return
 		}
 		opsNoStore(w)
-		opsJSON(w, http.StatusOK, service.Snapshot())
+		opsJSON(w, http.StatusOK, service.Snapshot(r.Context()))
 	})
 	return m
 }

@@ -19,7 +19,10 @@ func opsContext(parent context.Context, timeout time.Duration) (context.Context,
 	if parent == nil {
 		parent = context.Background()
 	}
-	return context.WithTimeout(context.Background(), timeout)
+	if timeout <= 0 {
+		timeout = 5 * time.Second
+	}
+	return context.WithTimeout(parent, timeout)
 }
 func opsDeadline(ctx context.Context) bool {
 	if ctx == nil {
