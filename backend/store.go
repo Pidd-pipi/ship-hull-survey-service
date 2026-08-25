@@ -18,7 +18,7 @@ func newFindingStore() *FindingStore {
 func (s *FindingStore) list() []SurveyFinding {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	var o []SurveyFinding
+	o := make([]SurveyFinding, 0, len(s.items))
 	for _, v := range s.items {
 		o = append(o, v)
 	}
@@ -27,7 +27,11 @@ func (s *FindingStore) list() []SurveyFinding {
 func (s *FindingStore) get(id string) (SurveyFinding, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.items[id], nil
+	v, ok := s.items[id]
+	if !ok {
+		return SurveyFinding{}, errFindingNotFound
+	}
+	return v, nil
 }
 func (s *FindingStore) changeStatus(id, status string) (SurveyFinding, error) {
 	s.mu.Lock()

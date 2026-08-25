@@ -46,10 +46,17 @@ func newRouter(store *FindingStore) http.Handler {
 		default:
 			switch r.Method {
 			case http.MethodGet:
-				v, _ := store.get(path)
+				v, e := store.get(path)
+				if errors.Is(e, errFindingNotFound) {
+					writeJSON(w, 404, map[string]string{"error": e.Error()})
+					return
+				}
 				writeJSON(w, 200, v)
 			case http.MethodDelete:
-				_ = store.remove(path)
+				if e := store.remove(path); errors.Is(e, errFindingNotFound) {
+					writeJSON(w, 404, map[string]string{"error": e.Error()})
+					return
+				}
 				writeJSON(w, 200, map[string]string{"status": "removed"})
 			default:
 				writeJSON(w, 405, map[string]string{"error": "method not allowed"})
