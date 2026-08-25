@@ -5,11 +5,15 @@ import (
 	"sync"
 )
 
+// opsTransitionTable defines the legal status transitions for an operations
+// record. queued jobs may be started or cancelled outright; active jobs may be
+// paused or closed; paused jobs may be resumed or closed; closed is terminal
+// and may not be reactivated.
 var opsTransitionTable = map[OpsStatus]map[OpsStatus]bool{
-	OpsStatusQueued: {OpsStatusActive: true},
+	OpsStatusQueued: {OpsStatusActive: true, OpsStatusClosed: true},
 	OpsStatusActive: {OpsStatusPaused: true, OpsStatusClosed: true},
-	OpsStatusPaused: {OpsStatusClosed: true},
-	OpsStatusClosed: {OpsStatusActive: true},
+	OpsStatusPaused: {OpsStatusActive: true, OpsStatusClosed: true},
+	OpsStatusClosed: {},
 }
 
 type OpsTransition struct {
@@ -26,18 +30,21 @@ func newOpsStateMachine() *OpsStateMachine { return &OpsStateMachine{history: []
 func (m *OpsStateMachine) CanMove(from, to OpsStatus) bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	return from == to || opsTransitionTable[from][to]
+	if from == to {
+		return true
+	}
+	return opsTransitionTable[from][to]
 }
 func (m *OpsStateMachine) Move(from, to OpsStatus, reason string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if from == to {
-		m.history = append(m.history, OpsTransition{From: from, To: to, Reason: reason})
 		return nil
 	}
 	if !opsTransitionTable[from][to] {
 		return fmt.Errorf("%w: %s to %s", ErrOpsTransition, from, to)
 	}
+	m.history = append(m.history, OpsTransition{From: from, To: to, Reason: reason})
 	return nil
 }
 func (m *OpsStateMachine) History() []OpsTransition {

@@ -6,10 +6,8 @@ func opsMatch(item OpsRecord, query OpsQuery) bool {
 	if query.Subject != "" && !strings.Contains(strings.ToLower(item.Subject), strings.ToLower(query.Subject)) {
 		return false
 	}
-	if query.Status != "" {
-		if item.Status != query.Status && !(query.Status == OpsStatusActive && item.Status == OpsStatusPaused) {
-			return false
-		}
+	if query.Status != "" && item.Status != query.Status {
+		return false
 	}
 	if query.Priority != "" && item.Priority != query.Priority {
 		return false
