@@ -21,11 +21,18 @@ type OpsAudit struct {
 func newOpsAudit() *OpsAudit { return &OpsAudit{events: []OpsEvent{}} }
 func (a *OpsAudit) Add(recordID, typ, actor string) OpsEvent {
 	event := OpsEvent{ID: newOpsAuditID(), RecordID: recordID, Type: typ, Actor: actor, At: time.Now().UTC().Format(time.RFC3339Nano)}
+	a.mu.Lock()
+	defer a.mu.Unlock()
 	a.events = append(a.events, event)
+	if len(a.events) > maxAuditEvents {
+		a.events = a.events[len(a.events)-maxAuditEvents:]
+	}
 	return event
 }
 func (a *OpsAudit) For(recordID string) []OpsEvent {
-	out := []OpsEvent{}
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	out := make([]OpsEvent, 0, len(a.events))
 	for _, event := range a.events {
 		if event.RecordID == recordID {
 			out = append(out, event)
