@@ -33,9 +33,15 @@ type EvidenceStore struct {
 func newEvidenceStore() *EvidenceStore { return &EvidenceStore{items: map[string][]EvidenceRef{}} }
 
 func (s *EvidenceStore) Add(findingID, kind, note string) (EvidenceRef, error) {
+	if err := validateEvidenceKind(kind); err != nil {
+		return EvidenceRef{}, err
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	refs := s.items[findingID]
+	if len(refs) >= maxEvidencePerFinding {
+		return EvidenceRef{}, fmt.Errorf("evidence limit reached for survey finding %s", findingID)
+	}
 	ref := EvidenceRef{ID: newEvidenceID(), Kind: kind, Note: note, At: time.Now().UTC().Format(time.RFC3339Nano)}
 	s.items[findingID] = append(refs, ref)
 	return ref, nil
@@ -44,7 +50,10 @@ func (s *EvidenceStore) Add(findingID, kind, note string) (EvidenceRef, error) {
 func (s *EvidenceStore) For(findingID string) []EvidenceRef {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return s.items[findingID]
+	src := s.items[findingID]
+	out := make([]EvidenceRef, len(src))
+	copy(out, src)
+	return out
 }
 
 // newEvidenceHandler exposes evidence attachments for survey findings.

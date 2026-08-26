@@ -13,7 +13,7 @@ func validateSurveyStatus(s string) error {
 
 func validateEvidenceKind(kind string) error {
 	switch kind {
-	case "photo", "note":
+	case "photo", "scan", "note":
 		return nil
 	default:
 		return fmt.Errorf("evidence kind must be photo, scan, or note")
