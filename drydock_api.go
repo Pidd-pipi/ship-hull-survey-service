@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 )
 
@@ -42,7 +43,11 @@ func handleDryDockBook(w http.ResponseWriter, r *http.Request, dock *DryDock) {
 	}
 	res, err := dock.Book(req)
 	if err != nil {
-		opsJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+		status := http.StatusBadRequest
+		if errors.Is(err, errDockConflict) {
+			status = http.StatusConflict
+		}
+		opsJSON(w, status, map[string]string{"error": err.Error()})
 		return
 	}
 	opsJSON(w, http.StatusCreated, res)
