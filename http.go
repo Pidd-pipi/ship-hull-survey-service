@@ -10,6 +10,7 @@ import (
 func newRouter(store *FindingStore) http.Handler {
 	m := http.NewServeMux()
 	m.HandleFunc("/healthz", healthHandler("ship-hull-survey-service"))
+	m.Handle("/", staticHandler())
 	m.HandleFunc("/api/findings", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet || r.URL.Path != "/api/findings" {
 			writeJSON(w, 405, map[string]string{"error": "method not allowed"})
