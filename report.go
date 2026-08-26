@@ -6,17 +6,16 @@ import (
 	"strings"
 )
 
-// reportLineScratch is a package-level buffer reused across report builds.
-var reportLineScratch []string
-
 // SurveyReport summarizes the current survey findings for the vessel fleet.
 type SurveyReport struct {
 	GeneratedAt string
 	Total       int
-	Open        int
-	BySeverity  map[string]int
-	ByZone      map[string]int
-	Lines       []string
+	// Open counts findings still pending action, i.e. not yet closed.
+	// Both "open" and "reviewed" findings remain outstanding until closed.
+	Open       int
+	BySeverity map[string]int
+	ByZone     map[string]int
+	Lines      []string
 }
 
 // buildSurveyReport aggregates findings into a human readable summary. The
@@ -29,7 +28,9 @@ func buildSurveyReport(findings []SurveyFinding, clock OpsClock) SurveyReport {
 	}
 	for _, finding := range findings {
 		report.Total++
-		if finding.Status == "open" {
+		// A finding is pending until it is explicitly closed; "reviewed"
+		// still requires follow-up, so it counts toward the open backlog.
+		if finding.Status != "closed" {
 			report.Open++
 		}
 		report.BySeverity[finding.Severity]++
@@ -40,11 +41,14 @@ func buildSurveyReport(findings []SurveyFinding, clock OpsClock) SurveyReport {
 		zones = append(zones, zone)
 	}
 	sort.Strings(zones)
-	reportLineScratch = reportLineScratch[:0]
+	// Build lines into a slice owned by this report. A shared package-level
+	// buffer would alias across builds, so an earlier report's Lines would be
+	// overwritten when a later (shorter) build reuses the same backing array.
+	lines := make([]string, 0, len(zones))
 	for _, zone := range zones {
-		reportLineScratch = append(reportLineScratch, formatZoneLine(zone, report.ByZone[zone], report.BySeverity))
+		lines = append(lines, formatZoneLine(zone, report.ByZone[zone], report.BySeverity))
 	}
-	report.Lines = reportLineScratch
+	report.Lines = lines
 	return report
 }
 

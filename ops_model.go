@@ -82,7 +82,9 @@ type OpsSnapshot struct {
 
 func (r OpsRecord) Clone() OpsRecord {
 	copy := r
-	copy.Labels = r.Labels
+	// Labels is a map; without a deep copy the clone shares the store's
+	// backing map, so any caller mutation leaks back into stored records.
+	copy.Labels = cloneOpsLabels(r.Labels)
 	return copy
 }
 
@@ -111,8 +113,21 @@ func normalizeOpsRecord(record OpsRecord) OpsRecord {
 	}
 	if record.Labels == nil {
 		record.Labels = map[string]string{}
+	} else {
+		// Detach from the caller's map so later mutations to the request
+		// value cannot leak into stored records.
+		record.Labels = cloneOpsLabels(record.Labels)
 	}
 	return record
+}
+
+// cloneOpsLabels returns an independent copy of a labels map.
+func cloneOpsLabels(labels map[string]string) map[string]string {
+	out := make(map[string]string, len(labels))
+	for k, v := range labels {
+		out[k] = v
+	}
+	return out
 }
 
 func sortOpsRecords(items []OpsRecord) {
